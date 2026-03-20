@@ -39,11 +39,10 @@ jobs:
           # GitHub Pages project site URL is:
           # https://USERNAME.github.io/REPO_NAME/
           NEXT_PUBLIC_BASE_PATH: ${{ format('/{0}', github.event.repository.name) }}
-          # Optional: set these as GitHub Actions secrets if you want live Kalshi.
-          # Keep them unset to use the app's mock fallback.
-          NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID: ${{ secrets.NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID }}
-          NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM: ${{ secrets.NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM }}
-          NEXT_PUBLIC_KALSHI_BASE_URL: ${{ vars.NEXT_PUBLIC_KALSHI_BASE_URL }}
+          # Intentionally do NOT set NEXT_PUBLIC_KALSHI_* here.
+          # Anything in NEXT_PUBLIC_* is embedded into the client-side JS during a static export.
+          # For an authenticated Kalshi Trade API client, the private signing key would therefore be public.
+          # Result: the app uses mock data on GitHub Pages by default.
         run: yarn build
 
       - name: Upload artifact
@@ -61,4 +60,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

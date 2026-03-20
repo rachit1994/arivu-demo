@@ -45,17 +45,17 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Kalshi (real market data)
 
-Calls go **directly from the browser** to the Kalshi Trade API (signed with **Web Crypto**), so static hosting works. Copy `.env.example` to `.env.local` and set:
+Calls go **directly from the browser** to the Kalshi Trade API (signed with **Web Crypto**).
 
-**Required (client — embedded in the JS bundle):**
+**GitHub Pages security:** Authenticated Kalshi requests require a private signing key. In a static export, anything in `NEXT_PUBLIC_*` is embedded into the client-side JS, so it is not safe to treat it like a secret. The GitHub Pages deployment workflow intentionally does **not** inject `NEXT_PUBLIC_KALSHI_*`, so the app uses the existing **mock** realtime data by default.
 - `NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID`
-- `NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM` — PKCS#8 PEM; newlines can be `\n` in a single-line env value
+- `NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM` — demo-only PKCS#8 PEM; newlines can be `\n` in a single-line env value
 
 **Optional:**
 - `NEXT_PUBLIC_KALSHI_BASE_URL` — default demo: `https://demo-api.kalshi.co/trade-api/v2`
 - `NEXT_PUBLIC_BASE_PATH` — e.g. `/arivu-demo` for GitHub Pages project sites (must match `next.config` at build time)
 
-**Security:** `NEXT_PUBLIC_*` values are **public**. Use **demo** keys for GitHub Pages; production trading keys belong on a server, not in static sites.
+**Security note:** `NEXT_PUBLIC_*` values are **public** in a static export. Treat them as demo-only data embedded into JS.
 
 **CORS:** If the browser blocks Kalshi responses, you will need a host that allows your origin or a small backend proxy (out of scope here).
 

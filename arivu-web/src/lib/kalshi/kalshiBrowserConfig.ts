@@ -1,6 +1,10 @@
 /**
  * Kalshi credentials for browser/static builds. NEXT_PUBLIC_* is embedded in the
- * client bundle — use only demo keys or accept public exposure for GitHub Pages demos.
+ * client bundle. For GitHub Pages, we intentionally do not inject Kalshi private
+ * keys via the workflow because it would make them public in the shipped JS.
+ *
+ * Result: without explicitly providing NEXT_PUBLIC_KALSHI_* in your build
+ * environment, the app stays in mock mode.
  */
 export interface KalshiBrowserConfig {
   accessKeyId: string;
