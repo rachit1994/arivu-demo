@@ -46,11 +46,10 @@ jobs:
           # GitHub Pages project site URL is:
           # https://USERNAME.github.io/REPO_NAME/
           NEXT_PUBLIC_BASE_PATH: ${{ format('/{0}', github.event.repository.name) }}
-          # Optional: set these as GitHub Actions secrets if you want live Kalshi.
-          # Keep them unset to use the app's mock fallback.
-          NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID: ${{ secrets.NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID }}
-          NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM: ${{ secrets.NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM }}
-          NEXT_PUBLIC_KALSHI_BASE_URL: ${{ vars.NEXT_PUBLIC_KALSHI_BASE_URL }}
+          # Do NOT set NEXT_PUBLIC_KALSHI_* here. Next.js embeds NEXT_PUBLIC_* into the
+          # client bundle at build time, so a private signing key would become public in
+          # the deployed JS. GitHub Actions "secrets" do not change that. Use mock mode
+          # on Pages; for live Kalshi use a server-side proxy or a non-static host.
         run: yarn build
 
       - name: Upload artifact

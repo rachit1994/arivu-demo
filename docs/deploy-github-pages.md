@@ -12,9 +12,9 @@ GitHub Pages is **free static hosting**. It serves HTML, CSS, JavaScript, and im
 
 ### How this repo is set up
 
-`arivu-web` already uses **`output: "export"`** (see `next.config.ts`). Kalshi runs **in the browser** via `NEXT_PUBLIC_KALSHI_*` env vars at build time. Configure GitHub Actions secrets for those vars if you want live Kalshi on Pages.
+`arivu-web` already uses **`output: "export"`** (see `next.config.ts`). Kalshi can run **in the browser** when you set `NEXT_PUBLIC_KALSHI_*` at **build time** (e.g. local `yarn build`). The GitHub Pages workflow **does not** pass those vars from Actions secrets: anything `NEXT_PUBLIC_*` is inlined into the shipped JS, so a private signing key would not stay secret. Deployed Pages builds use the app’s **mock** Kalshi mode unless you change that architecture (e.g. a server-side proxy).
 
-**Caveats:** `NEXT_PUBLIC_*` values are **public** in the JS bundle (use demo keys). The Kalshi API must allow your site origin (**CORS**), or browser calls will fail.
+**Caveats:** If you ever build with real Kalshi env vars locally, treat them as **public** once embedded. Live browser calls also need the Kalshi API to allow your origin (**CORS**).
 
 ---
 
@@ -147,12 +147,23 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Activate Yarn 4.10.3
+        run: corepack prepare yarn@4.10.3 --activate
+
+      - name: Verify Yarn version
+        working-directory: arivu-web
+        run: yarn --version
+
       - name: Install dependencies
         working-directory: arivu-web
         run: yarn install --immutable
 
       - name: Build static export
         working-directory: arivu-web
+        env:
+          # https://USERNAME.github.io/REPO_NAME/
+          NEXT_PUBLIC_BASE_PATH: ${{ format('/{0}', github.event.repository.name) }}
+          # Do NOT set NEXT_PUBLIC_KALSHI_* here (inlined into client bundle; not secret).
         run: yarn build
 
       - name: Upload artifact
