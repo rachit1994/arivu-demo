@@ -138,11 +138,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # setup-node cache: yarn uses Yarn 1 before Corepack and breaks Yarn 4 projects.
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: yarn
-          cache-dependency-path: arivu-web/yarn.lock
 
       - name: Enable Corepack
         run: corepack enable
@@ -153,6 +152,14 @@ jobs:
       - name: Verify Yarn version
         working-directory: arivu-web
         run: yarn --version
+
+      - name: Cache Yarn global cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.yarn/berry/cache
+          key: ${{ runner.os }}-yarn-berry-${{ hashFiles('arivu-web/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-berry-
 
       - name: Install dependencies
         working-directory: arivu-web
