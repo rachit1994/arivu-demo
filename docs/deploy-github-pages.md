@@ -153,10 +153,11 @@ jobs:
         working-directory: arivu-web
         run: yarn --version
 
-      - name: Cache Yarn global cache
+      # actions/cache does not expand ~ — use the hosted runner home (ubuntu-latest).
+      - name: Cache Yarn Berry global cache
         uses: actions/cache@v4
         with:
-          path: ~/.yarn/berry/cache
+          path: /home/runner/.yarn/berry/cache
           key: ${{ runner.os }}-yarn-berry-${{ hashFiles('arivu-web/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-berry-
