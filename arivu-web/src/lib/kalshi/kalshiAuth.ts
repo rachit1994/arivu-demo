@@ -41,7 +41,8 @@ const getSubtleCrypto = (): SubtleCrypto => {
   return subtle;
 };
 
-const pemPkcs8ToArrayBuffer = (pem: string): ArrayBuffer => {
+/** PKCS#8 DER bytes for Web Crypto importKey (use Uint8Array, not raw ArrayBuffer — avoids CI/jsdom realm issues). */
+const pemPkcs8ToDerBytes = (pem: string): Uint8Array => {
   const b64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
@@ -51,7 +52,7 @@ const pemPkcs8ToArrayBuffer = (pem: string): ArrayBuffer => {
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+  return bytes;
 };
 
 const importRsaPssPrivateKey = async (privateKeyPem: string): Promise<CryptoKey> => {
@@ -59,7 +60,7 @@ const importRsaPssPrivateKey = async (privateKeyPem: string): Promise<CryptoKey>
   const subtle = getSubtleCrypto();
   const key = await subtle.importKey(
     "pkcs8",
-    pemPkcs8ToArrayBuffer(privateKeyPem),
+    pemPkcs8ToDerBytes(privateKeyPem),
     { name: "RSA-PSS", hash: "SHA-256" },
     false,
     ["sign"],
