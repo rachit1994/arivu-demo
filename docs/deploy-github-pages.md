@@ -143,11 +143,12 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Activate Yarn 4.10.3
-        run: corepack prepare yarn@4.10.3 --activate
+      # ubuntu-latest has Yarn 1.x in /usr/local/bin; prepend Node bin so Corepack wins.
+      - name: Enable Corepack and Yarn 4.10.3
+        run: |
+          corepack enable
+          corepack prepare yarn@4.10.3 --activate
+          echo "$(dirname "$(which node)")" >> "$GITHUB_PATH"
 
       - name: Verify Yarn version
         working-directory: arivu-web
