@@ -33,18 +33,27 @@ export const resetKalshiPrivateKeyImportCache = (): void => {
   keyCache = null;
 };
 
-let subtleCryptoOverride: SubtleCrypto | null = null;
+const subtleOverrideSymbol: unique symbol = Symbol.for(
+  "arivu.kalshi.subtleCryptoOverride",
+);
+
+type GlobalWithKalshiTestHook = typeof globalThis & {
+  [subtleOverrideSymbol]?: SubtleCrypto | null;
+};
 
 /**
- * Test-only (Vitest + jsdom): inject `node:crypto` webcrypto.subtle so PKCS8 importKey
- * matches the buffer realm; jsdom's SubtleCrypto often rejects our DER otherwise.
+ * Test-only (Vitest + jsdom): inject `node:crypto` webcrypto.subtle. Stored on
+ * globalThis so duplicate pre-bundled copies of this module still see the same subtle.
  */
 export const __setKalshiSubtleCryptoOverride = (subtle: SubtleCrypto | null): void => {
-  subtleCryptoOverride = subtle;
+  const g = globalThis as GlobalWithKalshiTestHook;
+  g[subtleOverrideSymbol] = subtle;
 };
 
 const getSubtleCrypto = (): SubtleCrypto => {
-  if (subtleCryptoOverride) return subtleCryptoOverride;
+  const g = globalThis as GlobalWithKalshiTestHook;
+  const override = g[subtleOverrideSymbol];
+  if (override) return override;
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) {
     throw new Error("Web Crypto API (crypto.subtle) is not available");
