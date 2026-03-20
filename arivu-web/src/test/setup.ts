@@ -2,13 +2,11 @@ import "@testing-library/jest-dom/vitest";
 
 import { webcrypto } from "node:crypto";
 
-// jsdom's SubtleCrypto can reject Node ArrayBuffers/TypedArrays in importKey (cross-realm).
-// Use Node's Web Crypto for tests so PKCS#8 buffers from kalshiAuth match crypto.subtle.
-Object.defineProperty(globalThis, "crypto", {
-  configurable: true,
-  value: webcrypto,
-  writable: true,
-});
+import { __setKalshiSubtleCryptoOverride } from "@/lib/kalshi/kalshiAuth";
+
+// jsdom's SubtleCrypto rejects PKCS8 buffers from kalshiAuth; Vitest VMs can also split
+// globalThis.crypto from the module graph. Force Node's subtle for all tests.
+__setKalshiSubtleCryptoOverride(webcrypto.subtle);
 
 if (!("ResizeObserver" in globalThis)) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

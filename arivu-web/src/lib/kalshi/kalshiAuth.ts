@@ -33,7 +33,18 @@ export const resetKalshiPrivateKeyImportCache = (): void => {
   keyCache = null;
 };
 
+let subtleCryptoOverride: SubtleCrypto | null = null;
+
+/**
+ * Test-only (Vitest + jsdom): inject `node:crypto` webcrypto.subtle so PKCS8 importKey
+ * matches the buffer realm; jsdom's SubtleCrypto often rejects our DER otherwise.
+ */
+export const __setKalshiSubtleCryptoOverride = (subtle: SubtleCrypto | null): void => {
+  subtleCryptoOverride = subtle;
+};
+
 const getSubtleCrypto = (): SubtleCrypto => {
+  if (subtleCryptoOverride) return subtleCryptoOverride;
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) {
     throw new Error("Web Crypto API (crypto.subtle) is not available");
