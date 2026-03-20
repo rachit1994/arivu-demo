@@ -12,6 +12,7 @@ import {
 import { buildInitialSnapshot, computeNextSnapshot } from "./computeTick";
 import type { MockSnapshot } from "./types";
 
+import { kalshiAuthedJsonGet } from "@/lib/kalshi/kalshiClientRequest";
 import { mapKalshiMarketToBookAndPrice } from "@/lib/kalshi/mapKalshiMarketToBookAndPrice";
 
 const Ctx = createContext<MockSnapshot | null>(null);
@@ -103,10 +104,12 @@ export const MockRealtimeProvider = ({
       };
 
       const updateFromKalshi = async (): Promise<void> => {
-        const res = await fetch(`/api/kalshi/markets?status=open&limit=20`);
-        if (!res.ok) return;
+        const result = await kalshiAuthedJsonGet("/markets?status=open&limit=20", {
+          timeoutMs: 8000,
+        });
+        if (result.kind !== "ok") return;
 
-        const data = (await res.json()) as { markets: KalshiBinaryMarketRow[] };
+        const data = result.data as { markets: KalshiBinaryMarketRow[] };
         const m = pickKalshiBinaryMarket(data.markets);
         if (!m) return;
 

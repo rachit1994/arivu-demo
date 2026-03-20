@@ -5,9 +5,15 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Provider, useAtom } from "jotai";
 
+import { resetKalshiPrivateKeyImportCache } from "@/lib/kalshi/kalshiAuth";
+import {
+  getTestKalshiPrivateKeyPem,
+  kalshiDemoBaseUrl,
+  resolveFetchUrl,
+} from "@/lib/kalshi/kalshiTestKeys";
 import { MockRealtimeProvider } from "@/lib/mockRealtime";
 import {
   activeMarketQuestionAtom,
@@ -21,6 +27,18 @@ import {
 
 import { TopicList } from "./TopicList";
 
+const stubMarketsKalshiFetch = (payload: {
+  markets: unknown[];
+  cursor: string;
+}) =>
+  vi.fn(async (input: RequestInfo | URL) => {
+    const url = resolveFetchUrl(input);
+    if (!url.includes("demo-api.kalshi.co") || !url.includes("/markets?")) {
+      return new Response(JSON.stringify({}), { status: 404 });
+    }
+    return new Response(JSON.stringify(payload), { status: 200 });
+  });
+
 describe("TopicList", () => {
   const Harness = () => (
     <div data-testid="topic-scroll" style={{ height: 420, overflow: "auto" }}>
@@ -28,45 +46,49 @@ describe("TopicList", () => {
     </div>
   );
 
+  beforeEach(async () => {
+    const pem = await getTestKalshiPrivateKeyPem();
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_test");
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+  });
+
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    resetKalshiPrivateKeyImportCache();
   });
 
   test("renders a list of topic rows", async () => {
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          markets: [
-            {
-              ticker: "ev_1",
-              market_type: "binary",
-              title: "Midterm election: Senator",
-              subtitle: "Will the senator win?",
-              yes_sub_title: "YES",
-              no_sub_title: "NO",
-              last_price_dollars: "0.55",
-              yes_bid_dollars: "0.54",
-              yes_ask_dollars: "0.56",
-              volume: 350019,
-            },
-            {
-              ticker: "ev_2",
-              market_type: "binary",
-              title: "NBA matchup",
-              subtitle: "",
-              yes_sub_title: "Will Team A win?",
-              no_sub_title: "Will Team B win?",
-              last_price_dollars: "0.12",
-              yes_bid_dollars: "0.11",
-              yes_ask_dollars: "0.13",
-              volume: 123456,
-            },
-          ],
-          cursor: "cursor_1",
-        }),
-        { status: 200 },
-      );
+    const fetchSpy = stubMarketsKalshiFetch({
+      markets: [
+        {
+          ticker: "ev_1",
+          market_type: "binary",
+          title: "Midterm election: Senator",
+          subtitle: "Will the senator win?",
+          yes_sub_title: "YES",
+          no_sub_title: "NO",
+          last_price_dollars: "0.55",
+          yes_bid_dollars: "0.54",
+          yes_ask_dollars: "0.56",
+          volume: 350019,
+        },
+        {
+          ticker: "ev_2",
+          market_type: "binary",
+          title: "NBA matchup",
+          subtitle: "",
+          yes_sub_title: "Will Team A win?",
+          no_sub_title: "Will Team B win?",
+          last_price_dollars: "0.12",
+          yes_bid_dollars: "0.11",
+          yes_ask_dollars: "0.13",
+          volume: 123456,
+        },
+      ],
+      cursor: "cursor_1",
     });
 
     vi.stubGlobal("fetch", fetchSpy);
@@ -94,39 +116,34 @@ describe("TopicList", () => {
   });
 
   test("filters by category", async () => {
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          markets: [
-            {
-              ticker: "ev_1",
-              market_type: "binary",
-              title: "Midterm election: Senator",
-              subtitle: "Will the senator win?",
-              yes_sub_title: "YES",
-              no_sub_title: "NO",
-              last_price_dollars: "0.55",
-              yes_bid_dollars: "0.54",
-              yes_ask_dollars: "0.56",
-              volume: 350019,
-            },
-            {
-              ticker: "ev_2",
-              market_type: "binary",
-              title: "NBA matchup",
-              subtitle: "",
-              yes_sub_title: "Will Team A win?",
-              no_sub_title: "Will Team B win?",
-              last_price_dollars: "0.12",
-              yes_bid_dollars: "0.11",
-              yes_ask_dollars: "0.13",
-              volume: 123456,
-            },
-          ],
-          cursor: "cursor_1",
-        }),
-        { status: 200 },
-      );
+    const fetchSpy = stubMarketsKalshiFetch({
+      markets: [
+        {
+          ticker: "ev_1",
+          market_type: "binary",
+          title: "Midterm election: Senator",
+          subtitle: "Will the senator win?",
+          yes_sub_title: "YES",
+          no_sub_title: "NO",
+          last_price_dollars: "0.55",
+          yes_bid_dollars: "0.54",
+          yes_ask_dollars: "0.56",
+          volume: 350019,
+        },
+        {
+          ticker: "ev_2",
+          market_type: "binary",
+          title: "NBA matchup",
+          subtitle: "",
+          yes_sub_title: "Will Team A win?",
+          no_sub_title: "Will Team B win?",
+          last_price_dollars: "0.12",
+          yes_bid_dollars: "0.11",
+          yes_ask_dollars: "0.13",
+          volume: 123456,
+        },
+      ],
+      cursor: "cursor_1",
     });
 
     vi.stubGlobal("fetch", fetchSpy);
@@ -158,27 +175,22 @@ describe("TopicList", () => {
   });
 
   test("clicking a topic sets active market + ticket selection", async () => {
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          markets: [
-            {
-              ticker: "ev_1",
-              market_type: "binary",
-              title: "Midterm election: Senator",
-              subtitle: "Will the senator win?",
-              yes_sub_title: "YES",
-              no_sub_title: "NO",
-              last_price_dollars: "0.55",
-              yes_bid_dollars: "0.54",
-              yes_ask_dollars: "0.56",
-              volume: 350019,
-            },
-          ],
-          cursor: "cursor_1",
-        }),
-        { status: 200 },
-      );
+    const fetchSpy = stubMarketsKalshiFetch({
+      markets: [
+        {
+          ticker: "ev_1",
+          market_type: "binary",
+          title: "Midterm election: Senator",
+          subtitle: "Will the senator win?",
+          yes_sub_title: "YES",
+          no_sub_title: "NO",
+          last_price_dollars: "0.55",
+          yes_bid_dollars: "0.54",
+          yes_ask_dollars: "0.56",
+          volume: 350019,
+        },
+      ],
+      cursor: "cursor_1",
     });
 
     vi.stubGlobal("fetch", fetchSpy);
@@ -212,13 +224,18 @@ describe("TopicList", () => {
 
     await waitFor(
       () => {
-        const rows = screen.getAllByTestId("market-question-row");
-        expect(rows.length).toBeGreaterThan(0);
+        const evRow = screen
+          .getAllByTestId("market-question-row")
+          .find((r) => r.getAttribute("data-market-id") === "ev_1");
+        expect(evRow).toBeTruthy();
       },
       { timeout: 3000 },
     );
-    const rows = screen.getAllByTestId("market-question-row");
-    fireEvent.click(rows[0] as HTMLElement);
+    const evRow = screen
+      .getAllByTestId("market-question-row")
+      .find((r) => r.getAttribute("data-market-id") === "ev_1");
+    if (!evRow) throw new Error("expected Kalshi row ev_1");
+    fireEvent.click(evRow);
 
     await waitFor(() => {
       expect(screen.getByTestId("active-ticker").textContent).toBe("ev_1");
@@ -232,27 +249,22 @@ describe("TopicList", () => {
   });
 
   test("adds extra spacing between sidebar cards", async () => {
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          markets: [
-            {
-              ticker: "ev_1",
-              market_type: "binary",
-              title: "Midterm election: Senator",
-              subtitle: "Will the senator win?",
-              yes_sub_title: "YES",
-              no_sub_title: "NO",
-              last_price_dollars: "0.55",
-              yes_bid_dollars: "0.54",
-              yes_ask_dollars: "0.56",
-              volume: 350019,
-            },
-          ],
-          cursor: "cursor_1",
-        }),
-        { status: 200 },
-      );
+    const fetchSpy = stubMarketsKalshiFetch({
+      markets: [
+        {
+          ticker: "ev_1",
+          market_type: "binary",
+          title: "Midterm election: Senator",
+          subtitle: "Will the senator win?",
+          yes_sub_title: "YES",
+          no_sub_title: "NO",
+          last_price_dollars: "0.55",
+          yes_bid_dollars: "0.54",
+          yes_ask_dollars: "0.56",
+          volume: 350019,
+        },
+      ],
+      cursor: "cursor_1",
     });
 
     vi.stubGlobal("fetch", fetchSpy);

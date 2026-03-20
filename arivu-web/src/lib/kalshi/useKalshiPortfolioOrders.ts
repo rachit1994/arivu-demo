@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import {
   formatKalshiDollarsUsd,
   formatKalshiFixedPointCount,
@@ -59,18 +60,21 @@ export const useKalshiPortfolioOrders = ({
 
     void (async () => {
       try {
-        const res = await fetch(`/api/kalshi/portfolio/orders${query}`, {
+        const result = await kalshiAuthedJsonGet(`/portfolio/orders${query}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
 
-        if (res.status === 503) {
+        if (result.kind === "unconfigured") {
           setRows([]);
           setError(null);
           return;
         }
-        if (!res.ok) throw new Error("Kalshi orders request failed");
+        if (result.kind === "error") {
+          throw new Error(result.message);
+        }
 
-        const data = (await res.json()) as unknown;
+        const data = result.data as unknown;
         if (typeof data !== "object" || data === null || !("orders" in data)) {
           throw new Error("Kalshi orders response malformed");
         }

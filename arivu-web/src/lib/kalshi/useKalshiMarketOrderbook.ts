@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import {
   mapKalshiOrderbookToBidAsk,
   type KalshiOrderbookFp,
@@ -24,13 +25,15 @@ type KalshiOrderbookSnapshot =
   | { kind: "ok"; bids: BidAskLevel[]; asks: BidAskLevel[]; mid: number | null; spreadText: string }
   | { kind: "unavailable" };
 
-const snapshotFromOrderbookResponse = async (
-  res: Response,
-): Promise<KalshiOrderbookSnapshot> => {
-  if (res.status === 503) return { kind: "unavailable" };
-  if (!res.ok) throw new Error("Kalshi orderbook request failed");
+const snapshotFromKalshiResult = (
+  result: Awaited<ReturnType<typeof kalshiAuthedJsonGet>>,
+): KalshiOrderbookSnapshot => {
+  if (result.kind === "unconfigured") return { kind: "unavailable" };
+  if (result.kind === "error") {
+    throw new Error(result.message);
+  }
 
-  const data = (await res.json()) as unknown;
+  const data = result.data;
   if (typeof data !== "object" || data === null || !("orderbook_fp" in data)) {
     throw new Error("Kalshi orderbook response malformed");
   }
@@ -104,16 +107,14 @@ export const useKalshiMarketOrderbook = ({
       setError(null);
 
       try {
-        const res = await fetch(
-          `/api/kalshi/markets/${encodeURIComponent(
-            ticker,
-          )}/orderbook?depth=${depthClamped}`,
-          { signal: controller.signal },
+        const result = await kalshiAuthedJsonGet(
+          `/markets/${encodeURIComponent(ticker)}/orderbook?depth=${depthClamped}`,
+          { signal: controller.signal, timeoutMs: 8000 },
         );
 
         if (!alive) return;
 
-        const snap = await snapshotFromOrderbookResponse(res);
+        const snap = snapshotFromKalshiResult(result);
         if (snap.kind === "unavailable") {
           setBids([]);
           setAsks([]);

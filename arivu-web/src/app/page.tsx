@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useAtom, useSetAtom } from "jotai";
 import { NuqsAdapter } from "nuqs/adapters/react";
@@ -18,6 +18,7 @@ import {
   OrderBookPanel,
   OrderTicketPanel,
 } from "@/components/trading/panels";
+import { getKalshiBrowserConfig } from "@/lib/kalshi/kalshiBrowserConfig";
 import { MockRealtimeProvider } from "@/lib/mockRealtime";
 
 import {
@@ -29,8 +30,9 @@ import {
 import { activeMarketTickerAtom } from "@/lib/trading/state/activeMarketJotaiAtoms";
 
 export default function Home() {
-  const kalshiConfigured = Boolean(
-    process.env.KALSHI_ACCESS_KEY_ID && process.env.KALSHI_PRIVATE_KEY_PEM,
+  const kalshiConfigured = useMemo(
+    () => getKalshiBrowserConfig() !== null,
+    [],
   );
   const setPickedPrice = useSetAtom(ticketPickedPriceAtom);
   const setPickedSide = useSetAtom(ticketPickedSideAtom);

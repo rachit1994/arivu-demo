@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { formatKalshiDollarsUsd, formatKalshiFixedPointCount } from "./formatKalshiFixedPoints";
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 
 type KalshiPositionsResponse = {
   market_positions: unknown[];
@@ -56,18 +57,21 @@ export const useKalshiPortfolioPositions = ({
 
     void (async () => {
       try {
-        const res = await fetch(`/api/kalshi/portfolio/positions${query}`, {
+        const result = await kalshiAuthedJsonGet(`/portfolio/positions${query}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
 
-        if (res.status === 503) {
+        if (result.kind === "unconfigured") {
           setRows([]);
           setError(null);
           return;
         }
-        if (!res.ok) throw new Error("Kalshi positions request failed");
+        if (result.kind === "error") {
+          throw new Error(result.message);
+        }
 
-        const data = (await res.json()) as unknown;
+        const data = result.data as unknown;
         if (
           typeof data !== "object" ||
           data === null ||

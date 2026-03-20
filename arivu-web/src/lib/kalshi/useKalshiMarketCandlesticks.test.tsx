@@ -1,8 +1,14 @@
 "use client";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { resetKalshiPrivateKeyImportCache } from "./kalshiAuth";
+import {
+  getTestKalshiPrivateKeyPem,
+  kalshiDemoBaseUrl,
+  resolveFetchUrl,
+} from "./kalshiTestKeys";
 import { useKalshiMarketCandlesticks } from "./useKalshiMarketCandlesticks";
 
 const Harness = () => {
@@ -22,18 +28,35 @@ const Harness = () => {
 };
 
 describe("useKalshiMarketCandlesticks", () => {
-  test("fetches meta then candlesticks and maps to chart candles", async () => {
-    process.env.KALSHI_ACCESS_KEY_ID = "ak_123";
-    process.env.KALSHI_PRIVATE_KEY_PEM = "priv_pem";
+  afterEach(() => {
+    resetKalshiPrivateKeyImportCache();
+    vi.unstubAllEnvs();
+  });
 
-    const fetchSpy = vi.fn(async (input: RequestInfo) => {
-      if (typeof input !== "string") throw new Error("Unexpected fetch input");
-      const url = input;
-      if (url.includes("/api/kalshi/markets/ev_1")) {
-        return new Response(JSON.stringify({ market: { series_ticker: "ser_1" } }), { status: 200 });
+  test("fetches meta then candlesticks and maps to chart candles", async () => {
+    const pem = await getTestKalshiPrivateKeyPem();
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_123");
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = resolveFetchUrl(input);
+      if (
+        url.includes("demo-api.kalshi.co") &&
+        url.includes("/trade-api/v2/markets/ev_1") &&
+        !url.includes("orderbook") &&
+        !url.includes("candlesticks")
+      ) {
+        return new Response(
+          JSON.stringify({ market: { series_ticker: "ser_1" } }),
+          { status: 200 },
+        );
       }
 
-      if (url.includes("/api/kalshi/series/ser_1/markets/ev_1/candlesticks")) {
+      if (
+        url.includes("demo-api.kalshi.co") &&
+        url.includes("/series/ser_1/markets/ev_1/candlesticks")
+      ) {
         return new Response(
           JSON.stringify({
             ticker: "ev_1",
@@ -82,4 +105,3 @@ describe("useKalshiMarketCandlesticks", () => {
     });
   });
 });
-

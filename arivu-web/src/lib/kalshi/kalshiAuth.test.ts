@@ -1,13 +1,18 @@
 import crypto from "node:crypto";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
-  signKalshiRequest,
   kalshiAuthedFetch,
+  resetKalshiPrivateKeyImportCache,
+  signKalshiRequest,
 } from "./kalshiAuth";
 
+afterEach(() => {
+  resetKalshiPrivateKeyImportCache();
+});
+
 describe("Kalshi authenticated request helpers", () => {
-  test("signKalshiRequest produces a verifiable RSA-PSS signature (SHA256)", () => {
+  test("signKalshiRequest produces a verifiable RSA-PSS signature (SHA256)", async () => {
     const { privateKeyPem, publicKeyPem } = (() => {
       const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
         modulusLength: 2048,
@@ -23,7 +28,7 @@ describe("Kalshi authenticated request helpers", () => {
     const method = "GET";
     const pathWithQuery = "/trade-api/v2/markets?series_ticker=abc";
 
-    const signatureB64 = signKalshiRequest({
+    const signatureB64 = await signKalshiRequest({
       privateKeyPem,
       timestampMs,
       method,
@@ -109,4 +114,3 @@ describe("Kalshi authenticated request helpers", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
-

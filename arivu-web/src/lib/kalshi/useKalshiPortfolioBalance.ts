@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import type { PortfolioCell } from "@/lib/mockRealtime/types";
 
 type KalshiBalance = {
@@ -55,13 +56,21 @@ export const useKalshiPortfolioBalance = ({
 
     void (async () => {
       try {
-        const res = await fetch(`/api/kalshi/portfolio/balance${query}`, {
+        const result = await kalshiAuthedJsonGet(`/portfolio/balance${query}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
 
-        if (!res.ok) throw new Error("Kalshi balance request failed");
+        if (result.kind === "unconfigured") {
+          setPortfolio([]);
+          setError(null);
+          return;
+        }
+        if (result.kind === "error") {
+          throw new Error(result.message);
+        }
 
-        const data = (await res.json()) as KalshiBalance;
+        const data = result.data as KalshiBalance;
 
         const pnlCents = data.portfolio_value - data.balance;
 

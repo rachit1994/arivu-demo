@@ -1,9 +1,15 @@
 "use client";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { useEffect } from "react";
 
+import { resetKalshiPrivateKeyImportCache } from "./kalshiAuth";
+import {
+  getTestKalshiPrivateKeyPem,
+  kalshiDemoBaseUrl,
+  resolveFetchUrl,
+} from "./kalshiTestKeys";
 import { useKalshiMarkets } from "./useKalshiMarkets";
 
 const Harness = () => {
@@ -25,8 +31,22 @@ const Harness = () => {
 };
 
 describe("useKalshiMarkets", () => {
+  afterEach(() => {
+    resetKalshiPrivateKeyImportCache();
+    vi.unstubAllEnvs();
+  });
+
   test("loads markets and maps them into topic quotes", async () => {
-    const fetchSpy = vi.fn(async () => {
+    const pem = await getTestKalshiPrivateKeyPem();
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_test");
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = resolveFetchUrl(input);
+      if (!url.includes("demo-api.kalshi.co") || !url.includes("/markets?")) {
+        return new Response(JSON.stringify({}), { status: 404 });
+      }
       return new Response(
         JSON.stringify({
           markets: [
@@ -62,4 +82,3 @@ describe("useKalshiMarkets", () => {
     });
   });
 });
-

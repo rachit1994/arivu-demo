@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import {
   mapKalshiCandlesticksToChartCandles,
   type KalshiCandlesticksResponse,
@@ -69,17 +70,20 @@ export const useKalshiMarketCandlesticks = ({
 
     void (async () => {
       try {
-        const metaRes = await fetch(`/api/kalshi/markets/${ticker}`, {
+        const metaResult = await kalshiAuthedJsonGet(`/markets/${encodeURIComponent(ticker)}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
-        if (metaRes.status === 503) {
+        if (metaResult.kind === "unconfigured") {
           setCandles([]);
           setError(null);
           return;
         }
-        if (!metaRes.ok) throw new Error("Kalshi market meta request failed");
+        if (metaResult.kind === "error") {
+          throw new Error(metaResult.message);
+        }
 
-        const meta = (await metaRes.json()) as unknown;
+        const meta = metaResult.data as unknown;
         if (typeof meta !== "object" || meta === null) {
           throw new Error("Kalshi market meta response malformed");
         }
@@ -101,23 +105,25 @@ export const useKalshiMarketCandlesticks = ({
 
         const periodInterval = timeframeToPeriodInterval(timeframe);
 
-        const candlestickRes = await fetch(
-          `/api/kalshi/series/${encodeURIComponent(
-            seriesTicker,
-          )}/markets/${encodeURIComponent(
-            ticker,
-          )}/candlesticks?start_ts=${startTsSec}&end_ts=${endTsSec}&period_interval=${periodInterval}`,
-          { signal: controller.signal },
-        );
+        const candlePath = `/series/${encodeURIComponent(seriesTicker)}/markets/${encodeURIComponent(
+          ticker,
+        )}/candlesticks?start_ts=${startTsSec}&end_ts=${endTsSec}&period_interval=${periodInterval}`;
 
-        if (candlestickRes.status === 503) {
+        const candleResult = await kalshiAuthedJsonGet(candlePath, {
+          signal: controller.signal,
+          timeoutMs: 8000,
+        });
+
+        if (candleResult.kind === "unconfigured") {
           setCandles([]);
           setError(null);
           return;
         }
-        if (!candlestickRes.ok) throw new Error("Kalshi candlesticks request failed");
+        if (candleResult.kind === "error") {
+          throw new Error(candleResult.message);
+        }
 
-        const raw = (await candlestickRes.json()) as unknown;
+        const raw = candleResult.data as unknown;
         if (
           typeof raw !== "object" ||
           raw === null ||

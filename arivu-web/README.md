@@ -15,11 +15,12 @@ This repo uses `.yarnrc.yml` with `nodeLinker: node-modules` so **Next.js Turbop
 
 ```bash
 yarn dev      # Next dev (Turbopack)
-yarn build    # production build (Turbopack)
-yarn start    # production server
+yarn build    # static export → `out/` (no Node server)
 yarn lint
 yarn test
 ```
+
+This app uses **`output: "export"`** so it can ship to **GitHub Pages** and other static hosts. There is no `next start` server; preview the export with `npx serve out` (or any static file server).
 
 Open [http://localhost:3000](http://localhost:3000) after `yarn dev`.
 
@@ -44,17 +45,18 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Kalshi (real market data)
 
-If you provide Kalshi API credentials, the sidebar will fetch real market listings via our authenticated API routes.
+Calls go **directly from the browser** to the Kalshi Trade API (signed with **Web Crypto**), so static hosting works. Copy `.env.example` to `.env.local` and set:
 
-Required server environment variables:
-- `KALSHI_ACCESS_KEY_ID`: Kalshi API key ID.
-- `KALSHI_PRIVATE_KEY_PEM`: RSA private key in PEM format (store as a server secret).
+**Required (client — embedded in the JS bundle):**
+- `NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID`
+- `NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM` — PKCS#8 PEM; newlines can be `\n` in a single-line env value
 
-Optional:
-- `KALSHI_BASE_URL`: Override the Kalshi Trade API v2 base URL.
-  - Default (demo): `https://demo-api.kalshi.co/trade-api/v2`
-  - Production: `https://api.elections.kalshi.com/trade-api/v2`
+**Optional:**
+- `NEXT_PUBLIC_KALSHI_BASE_URL` — default demo: `https://demo-api.kalshi.co/trade-api/v2`
+- `NEXT_PUBLIC_BASE_PATH` — e.g. `/arivu-demo` for GitHub Pages project sites (must match `next.config` at build time)
 
-Notes:
-- We do not store or log secrets.
-- If Kalshi is not configured (or requests fail), the app falls back to the existing mock realtime data.
+**Security:** `NEXT_PUBLIC_*` values are **public**. Use **demo** keys for GitHub Pages; production trading keys belong on a server, not in static sites.
+
+**CORS:** If the browser blocks Kalshi responses, you will need a host that allows your origin or a small backend proxy (out of scope here).
+
+If credentials are missing or requests fail, the UI falls back to **mock** realtime data where applicable.

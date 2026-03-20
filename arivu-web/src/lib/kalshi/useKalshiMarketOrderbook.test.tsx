@@ -1,8 +1,15 @@
 "use client";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { resetKalshiPrivateKeyImportCache } from "./kalshiAuth";
+import {
+  getTestKalshiPrivateKeyPem,
+  isKalshiOrderbookUrl,
+  kalshiDemoBaseUrl,
+  resolveFetchUrl,
+} from "./kalshiTestKeys";
 import { useKalshiMarketOrderbook } from "./useKalshiMarketOrderbook";
 
 const Harness = () => {
@@ -23,17 +30,21 @@ const Harness = () => {
 };
 
 describe("useKalshiMarketOrderbook", () => {
-  describe("Positive cases", () => {
-    test("fetches /api/kalshi/markets/:ticker/orderbook and maps", async () => {
-      process.env.KALSHI_ACCESS_KEY_ID = "ak_123";
-      process.env.KALSHI_PRIVATE_KEY_PEM = "priv_pem";
-      process.env.KALSHI_BASE_URL =
-        "https://demo-api.kalshi.co/trade-api/v2";
+  afterEach(() => {
+    resetKalshiPrivateKeyImportCache();
+    vi.unstubAllEnvs();
+  });
 
-      const fetchSpy = vi.fn(async (input: RequestInfo) => {
-        if (typeof input !== "string")
-          throw new Error("Unexpected fetch input");
-        if (!input.includes("/api/kalshi/markets/ev_1/orderbook")) {
+  describe("Positive cases", () => {
+    test("fetches Kalshi markets/:ticker/orderbook and maps", async () => {
+      const pem = await getTestKalshiPrivateKeyPem();
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_123");
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+
+      const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+        const url = resolveFetchUrl(input);
+        if (!isKalshiOrderbookUrl(url)) {
           return new Response(JSON.stringify({}), { status: 404 });
         }
 
@@ -75,11 +86,16 @@ describe("useKalshiMarketOrderbook", () => {
   });
 
   describe("Negative cases", () => {
-    test("treats 503 from orderbook as no Kalshi data", async () => {
-      const fetchSpy = vi.fn(async (input: RequestInfo) => {
-        const url = typeof input === "string" ? input : input.toString();
-        if (url.includes("/api/kalshi/markets/ev_1/orderbook")) {
-          return new Response(JSON.stringify({ error: "Kalshi not configured" }), {
+    test("treats 503 from Kalshi orderbook as no Kalshi data", async () => {
+      const pem = await getTestKalshiPrivateKeyPem();
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_123");
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+      vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+
+      const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+        const url = resolveFetchUrl(input);
+        if (isKalshiOrderbookUrl(url)) {
+          return new Response(JSON.stringify({ error: "unavailable" }), {
             status: 503,
             headers: { "Content-Type": "application/json" },
           });
@@ -106,4 +122,3 @@ describe("useKalshiMarketOrderbook", () => {
     });
   });
 });
-

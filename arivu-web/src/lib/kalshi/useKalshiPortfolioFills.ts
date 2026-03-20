@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import {
   formatIsoDateShort,
   formatKalshiDollarsUsd,
@@ -61,18 +62,21 @@ export const useKalshiPortfolioFills = ({
 
     void (async () => {
       try {
-        const res = await fetch(`/api/kalshi/portfolio/fills${query}`, {
+        const result = await kalshiAuthedJsonGet(`/portfolio/fills${query}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
 
-        if (res.status === 503) {
+        if (result.kind === "unconfigured") {
           setRows([]);
           setError(null);
           return;
         }
-        if (!res.ok) throw new Error("Kalshi fills request failed");
+        if (result.kind === "error") {
+          throw new Error(result.message);
+        }
 
-        const data = (await res.json()) as unknown;
+        const data = result.data as unknown;
         if (typeof data !== "object" || data === null || !("fills" in data)) {
           throw new Error("Kalshi fills response malformed");
         }

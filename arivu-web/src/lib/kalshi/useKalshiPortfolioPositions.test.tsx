@@ -1,8 +1,14 @@
 "use client";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { resetKalshiPrivateKeyImportCache } from "./kalshiAuth";
+import {
+  getTestKalshiPrivateKeyPem,
+  kalshiDemoBaseUrl,
+  resolveFetchUrl,
+} from "./kalshiTestKeys";
 import { useKalshiPortfolioPositions } from "./useKalshiPortfolioPositions";
 
 const Harness = () => {
@@ -22,12 +28,22 @@ const Harness = () => {
 };
 
 describe("useKalshiPortfolioPositions", () => {
-  test("loads market positions and formats dollars", async () => {
-    process.env.KALSHI_ACCESS_KEY_ID = "ak_123";
-    process.env.KALSHI_PRIVATE_KEY_PEM = "priv_pem";
-    process.env.KALSHI_BASE_URL = "https://demo-api.kalshi.co/trade-api/v2";
+  afterEach(() => {
+    resetKalshiPrivateKeyImportCache();
+    vi.unstubAllEnvs();
+  });
 
-    const fetchSpy = vi.fn(async () => {
+  test("loads market positions and formats dollars", async () => {
+    const pem = await getTestKalshiPrivateKeyPem();
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID", "ak_123");
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM", pem);
+    vi.stubEnv("NEXT_PUBLIC_KALSHI_BASE_URL", kalshiDemoBaseUrl);
+
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = resolveFetchUrl(input);
+      if (!url.includes("demo-api.kalshi.co") || !url.includes("/portfolio/positions")) {
+        return new Response(JSON.stringify({}), { status: 404 });
+      }
       return new Response(
         JSON.stringify({
           market_positions: [
@@ -57,4 +73,3 @@ describe("useKalshiPortfolioPositions", () => {
     });
   });
 });
-

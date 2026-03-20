@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
 import { mapKalshiMarketsToTopicQuotes } from "./mapKalshiMarketsToTopicQuotes";
 import type { KalshiMarket } from "./mapKalshiMarketsToTopicQuotes";
 import type { TopicQuote } from "@/lib/mockRealtime/types";
@@ -50,15 +51,22 @@ export const useKalshiMarkets = ({
 
     void (async () => {
       try {
-        const res = await fetch(`/api/kalshi/markets?${query}`, {
+        const result = await kalshiAuthedJsonGet(`/markets?${query}`, {
           signal: controller.signal,
+          timeoutMs: 8000,
         });
 
-        if (!res.ok) {
-          throw new Error("Kalshi markets request failed");
+        if (result.kind === "unconfigured") {
+          setTopics([]);
+          setCursor(null);
+          setError(null);
+          return;
+        }
+        if (result.kind === "error") {
+          throw new Error(result.message);
         }
 
-        const data = (await res.json()) as {
+        const data = result.data as {
           markets: unknown[];
           cursor: string | null;
         };
