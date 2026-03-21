@@ -12,8 +12,8 @@ import {
 import { buildInitialSnapshot, computeNextSnapshot } from "./computeTick";
 import type { MockSnapshot } from "./types";
 
-import { kalshiAuthedJsonGet } from "@/lib/kalshi/kalshiClientRequest";
-import { mapKalshiMarketToBookAndPrice } from "@/lib/kalshi/mapKalshiMarketToBookAndPrice";
+import { kalshiAuthedJsonGet } from "@/lib/trading/hooks";
+import { mapKalshiMarketToBookAndPrice } from "@/lib/trading/hooks";
 
 const Ctx = createContext<MockSnapshot | null>(null);
 

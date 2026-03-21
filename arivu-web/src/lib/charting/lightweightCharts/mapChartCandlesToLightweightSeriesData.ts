@@ -1,6 +1,6 @@
 import type { CandlestickData, HistogramData, UTCTimestamp } from "lightweight-charts";
 
-import type { ChartCandle } from "@/lib/kalshi/mapKalshiCandlesticksToChartCandles";
+import type { ChartCandle } from "@/lib/trading/hooks";
 
 const upWickColor = "rgb(0 210 148)";
 const upBodyColor = "rgba(0, 210, 148, 0.85)";

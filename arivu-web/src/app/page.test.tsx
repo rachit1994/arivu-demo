@@ -1,14 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { resetKalshiPrivateKeyImportCache } from "@/lib/kalshi/kalshiAuth";
-import { createKalshiDemoFetchHandler } from "@/lib/kalshi/kalshiPageTestFetch";
+import { resetKalshiPrivateKeyImportCache } from "@/lib/trading/hooks";
+import { createKalshiDemoFetchHandler } from "@/lib/trading/hooks";
 import {
   getTestKalshiPrivateKeyPem,
   isKalshiOrderbookUrl,
   kalshiDemoBaseUrl,
   resolveFetchUrl,
-} from "@/lib/kalshi/kalshiTestKeys";
+} from "@/lib/trading/hooks";
 
 import Home from "./page";
 

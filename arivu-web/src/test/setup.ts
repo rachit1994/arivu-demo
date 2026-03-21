@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { webcrypto } from "node:crypto";
 
-import { __setKalshiSubtleCryptoOverride } from "@/lib/kalshi/kalshiAuth";
+import { __setKalshiSubtleCryptoOverride } from "@/lib/trading/hooks";
 
 // jsdom's SubtleCrypto rejects PKCS8 buffers from kalshiAuth; Vitest VMs can also split
 // globalThis.crypto from the module graph. Force Node's subtle for all tests.
