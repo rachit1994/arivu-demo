@@ -12,9 +12,16 @@ GitHub Pages is **free static hosting**. It serves HTML, CSS, JavaScript, and im
 
 ### How this repo is set up
 
-`arivu-web` already uses **`output: "export"`** (see `next.config.ts`). Kalshi can run **in the browser** when you set `NEXT_PUBLIC_KALSHI_*` at **build time** (e.g. local `yarn build`). The GitHub Pages workflow **does not** pass those vars from Actions secrets: anything `NEXT_PUBLIC_*` is inlined into the shipped JS, so a private signing key would not stay secret. Deployed Pages builds use the app’s **mock** Kalshi mode unless you change that architecture (e.g. a server-side proxy).
+`arivu-web` already uses **`output: "export"`** (see `next.config.ts`). There are **no** Next.js Route Handlers under `src/app/**/route.ts`; market data goes through **client-side** Kalshi usage (`getKalshiBrowserConfig` in `kalshiBrowserConfig.ts`) or **mock** data when those env vars are absent.
 
-**Caveats:** If you ever build with real Kalshi env vars locally, treat them as **public** once embedded. Live browser calls also need the Kalshi API to allow your origin (**CORS**).
+Kalshi can run **in the browser** when you set `NEXT_PUBLIC_KALSHI_ACCESS_KEY_ID`, `NEXT_PUBLIC_KALSHI_PRIVATE_KEY_PEM`, and optionally `NEXT_PUBLIC_KALSHI_BASE_URL` at **build time** (e.g. local `yarn build`). The GitHub Pages workflow **does not** set them: anything `NEXT_PUBLIC_*` is inlined into the shipped JS, so a private signing key would not stay secret. Deployed Pages builds therefore use **mock** Kalshi mode unless you change that architecture (e.g. a server-side proxy).
+
+**Caveats:** If you build with real Kalshi env vars locally, treat them as **public** once embedded. Live browser calls also need the Kalshi API to allow your origin (**CORS**).
+
+### CI in this repository
+
+- **`.github/workflows/ci.yml`** — on push/PR to `main`: `yarn lint` and `yarn build` with `NEXT_PUBLIC_BASE_PATH` set like Pages. The workflow comment documents that **Vitest** can be flaky on the hosted runner for some crypto paths; run **`yarn test`** locally before pushing.
+- **`.github/workflows/deploy-github-pages.yml`** — on push to `main` (and manual dispatch): same install/build, then **deploy-pages** for the static `out/` output.
 
 ---
 
@@ -105,15 +112,11 @@ In `arivu-web/package.json`, you can add:
 
 This way every push to `main` rebuilds the site and publishes it. You do not upload files by hand.
 
-### Step 1 — Create the workflow file in your repo
+### Step 1 — Workflow file
 
-In your Git repository (root of `arivu`, not inside `arivu-web` only), create this path:
+**This repo already contains** `.github/workflows/deploy-github-pages.yml` at the monorepo root. If you are copying the pattern into another repository, create the same path there.
 
-`.github/workflows/deploy-github-pages.yml`
-
-### Step 2 — Paste this workflow (adjust `basePath` / folder if needed)
-
-Replace `arivu-demo` with **your repo name** if different.
+The canonical copy is the file in git; the snippet below matches its intent (Yarn 4 via Corepack, immutable install, `NEXT_PUBLIC_BASE_PATH` from the repo name, no `NEXT_PUBLIC_KALSHI_*` in CI).
 
 ```yaml
 name: Deploy Next.js to GitHub Pages
@@ -138,12 +141,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # setup-node cache: yarn uses Yarn 1 before Corepack and breaks Yarn 4 projects.
+      # Do not use setup-node's cache: yarn — global Yarn 1 runs before Corepack.
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # ubuntu-latest has Yarn 1.x in /usr/local/bin; prepend Node bin so Corepack wins.
       - name: Enable Corepack and Yarn 4.10.3
         run: |
           corepack enable
@@ -154,7 +156,6 @@ jobs:
         working-directory: arivu-web
         run: yarn --version
 
-      # actions/cache does not expand ~ — use the hosted runner home (ubuntu-latest).
       - name: Cache Yarn Berry global cache
         uses: actions/cache@v4
         with:
@@ -170,9 +171,11 @@ jobs:
       - name: Build static export
         working-directory: arivu-web
         env:
-          # https://USERNAME.github.io/REPO_NAME/
           NEXT_PUBLIC_BASE_PATH: ${{ format('/{0}', github.event.repository.name) }}
-          # Do NOT set NEXT_PUBLIC_KALSHI_* here (inlined into client bundle; not secret).
+          # Do NOT set NEXT_PUBLIC_KALSHI_* here. Next.js embeds NEXT_PUBLIC_* into the
+          # client bundle at build time, so a private signing key would become public in
+          # the deployed JS. GitHub Actions "secrets" do not change that. Use mock mode
+          # on Pages; for live Kalshi use a server-side proxy or a non-static host.
         run: yarn build
 
       - name: Upload artifact
@@ -194,7 +197,7 @@ jobs:
 
 **Important:** Your `next.config.ts` must use the same `basePath` / `assetPrefix` as your real GitHub repo name (see Part 3).
 
-### Step 3 — Commit and push the workflow
+### Step 2 — Commit and push (if you added or changed the workflow)
 
 ```bash
 git add .github/workflows/deploy-github-pages.yml
@@ -247,7 +250,7 @@ Open it in a browser. The first deploy can take one to two minutes after the wor
 |--------|----------------|
 | White page or 404 on refresh | `basePath` / `assetPrefix` must match the repo name; URLs must include the subpath (e.g. `/arivu-demo/`). |
 | Workflow fails on `yarn build` | Read the Actions log; fix Next.js static export errors (see Part 3). |
-| API calls fail in the browser | Expected on GitHub Pages until you remove or replace server API usage (Part 0). |
+| Kalshi or market data fails in the browser | On Pages you are in **mock** mode unless you inlined `NEXT_PUBLIC_KALSHI_*` at build (not recommended for secrets). Otherwise check **CORS**, demo vs prod `NEXT_PUBLIC_KALSHI_BASE_URL`, and PEM formatting (`\n` escapes). |
 | Old version still showing | Hard refresh (Ctrl+Shift+R / Cmd+Shift+R) or wait for CDN cache. |
 
 ---
@@ -262,12 +265,13 @@ Open it in a browser. The first deploy can take one to two minutes after the wor
 
 ## Quick checklist
 
-- [ ] Understood: GitHub Pages = static only; this app’s API routes need a different approach or another host.
+- [ ] Understood: GitHub Pages = static only; Kalshi is **client-side** (or mock); no reliance on Next.js Route Handlers for this app’s export.
 - [ ] `next.config.ts`: `output: 'export'` + correct `basePath` / `assetPrefix` for your repo.
 - [ ] `yarn build` works locally and creates `arivu-web/out/`.
-- [ ] Added `.github/workflows/deploy-github-pages.yml` and pushed to `main`.
+- [ ] `.github/workflows/deploy-github-pages.yml` present and pushed to `main` (this repo includes it).
 - [ ] **Settings → Pages → Source: GitHub Actions**.
 - [ ] Actions run succeeded; site opens at `https://YOUR_USERNAME.github.io/YOUR_REPO/`.
+- [ ] Optional: run **`yarn test`** locally (CI currently runs lint + build; see Part 0 “CI in this repository”).
 
 ---
 

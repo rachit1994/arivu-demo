@@ -1,5 +1,25 @@
 # Trading UI component conventions
 
+## Stack (as implemented)
+
+- **Next.js** (App Router) in `arivu-web`; static export via `output: "export"` in `next.config.ts`.
+- **Jotai** for cross-panel trading state (default store; no global `Provider` required for basics).
+- **nuqs** for URL query state; **`TradingUrlSync`** / `useTradingUrlSync` keeps nuqs and Jotai aligned (market, timeframe, subaccount, ticket outcome).
+- **Vitest** + Testing Library for unit/component tests.
+- **Tailwind CSS v4** (`@tailwindcss/postcss`).
+
+`recoil` is listed in `package.json` but **not** imported by the trading UI; new global trading state belongs in Jotai modules under `src/lib/trading/state/`.
+
+## Global state modules (Jotai)
+
+| Module | Role |
+|--------|------|
+| `activeMarketJotaiAtoms.ts` | Active market ticker, headline, chart timeframe, subaccount index. |
+| `ticketSelectionJotaiAtoms.ts` | Order ticket price/side/outcome and “which market set the price” for clear-on-change behavior. |
+| `pinnedMarketsJotaiAtoms.ts` | Pinned market snapshots for the sidebar + pinned strip (in-memory only). |
+
+Subscribe with `useAtom` / `useAtomValue` / `useSetAtom` in the leaf that owns the behavior; avoid prop-drilling when atoms already model the shared concern.
+
 ## Mini-package layout
 
 Each UI component lives in its own folder:
@@ -18,5 +38,5 @@ Each UI component lives in its own folder:
 
 ## Render strategy
 
-- Keep layout shells mostly presentational; subscribe to atoms and run effects in the **deepest** component that owns the behavior.
+- Keep layout shells mostly presentational; subscribe to Jotai atoms and run effects in the **deepest** component that owns the behavior.
 - Add `React.memo` only when a child is proven expensive; prefer colocating state and data hooks in leaves.
