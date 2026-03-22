@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * One-shot fetch of Kalshi `/markets` for sidebar `TopicQuote` rows (see mapper).
+ *
+ * - `unconfigured` → empty topics, no error (TopicList falls back to mock catalog).
+ * - `limit` clamped 1–1000 for sane URLs; `status` optional query filter.
+ * - `cursor` returned for future pagination (not wired in UI yet).
+ * - Abort + 8s timeout on effect cleanup or param change; ignores errors after abort.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 
 import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
@@ -14,6 +23,7 @@ export type UseKalshiMarketsArgs = {
   status?: KalshiMarketStatus;
 };
 
+/** Keeps `limit` in API-friendly range; NaN → 100 default. */
 const clampLimit = (n: number): number => {
   if (!Number.isFinite(n)) return 100;
   if (n < 1) return 1;

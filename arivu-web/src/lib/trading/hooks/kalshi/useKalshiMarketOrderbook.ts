@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Polls Kalshi `/markets/{ticker}/orderbook` and exposes normalized bid/ask levels + mid.
+ *
+ * - `unconfigured` / malformed responses → empty book, no throw (panel uses mock).
+ * - Polling (when `pollIntervalMs` set) pauses in background tabs via `visibilityState`.
+ * - `alive` flag prevents setState after unmount or ticker change mid-flight.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 
 import { kalshiAuthedJsonGet } from "./kalshiClientRequest";
@@ -13,6 +21,7 @@ type KalshiOrderbookRouteResponse = {
   orderbook_fp: KalshiOrderbookFp;
 };
 
+/** API accepts a depth param; clamp keeps URLs bounded and avoids NaN. */
 const clampDepth = (n: number): number => {
   if (!Number.isFinite(n)) return 50;
   const x = Math.trunc(n);
@@ -28,6 +37,7 @@ type KalshiOrderbookSnapshot =
 const snapshotFromKalshiResult = (
   result: Awaited<ReturnType<typeof kalshiAuthedJsonGet>>,
 ): KalshiOrderbookSnapshot => {
+  // Treat missing keys like a soft miss — same as empty book for the UI pipeline.
   if (result.kind === "unconfigured") return { kind: "unavailable" };
   if (result.kind === "error") {
     throw new Error(result.message);
@@ -158,7 +168,9 @@ export const useKalshiMarketOrderbook = ({
 
     const intervalId = globalThis.setInterval(() => {
       if (!alive) return;
+      // Save battery / avoid thundering herd when user is in another tab.
       if (globalThis.document.visibilityState !== "visible") return;
+      // `withLoading: false` — silent refresh so the book does not flash a spinner every tick.
       void fetchOnce(false);
     }, pollIntervalMs);
 

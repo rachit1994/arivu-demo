@@ -1,3 +1,7 @@
+/**
+ * Running **cumulative quantity** from the touch outward. Caller must pass levels in the
+ * order cumulative should accumulate (see `prepareOrderbookDisplayRows`).
+ */
 export type OrderbookLevel = {
   px: number;
   qty: number;

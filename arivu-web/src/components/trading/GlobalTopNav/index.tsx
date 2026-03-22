@@ -1,3 +1,7 @@
+/**
+ * Placeholder global nav (Discover, Portfolio, …) + non-functional search + Deposit.
+ * Links use `href="#"` until real routes exist — keeps layout stable for visual testing.
+ */
 export const GlobalTopNav = () => {
   return (
     <header
@@ -26,6 +30,7 @@ export const GlobalTopNav = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Search hidden on small screens to preserve header height; md+ shows full width. */}
         <div className="hidden items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-neutral-500 md:flex">
           <input
             type="text"

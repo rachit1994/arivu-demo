@@ -1,3 +1,15 @@
+/**
+ * Deterministic mock market simulation: builds an initial `MockSnapshot` and evolves it
+ * with `computeNextSnapshot` on a timer (`MockRealtimeProvider` mock mode).
+ *
+ * Design goals:
+ * - **Stable per ticker**: `buildInitialSnapshot(marketTicker)` hashes the id so changing
+ *   the selected market shifts mid/spread/topic phases without a full app reload.
+ * - **Bounded values**: mids and probabilities clamped so charts and copy stay in-range.
+ * - **Bounded history**: price array trimmed to last 240 points to cap memory in long sessions.
+ *
+ * Topics/portfolio strings are decorative — they animate with `tick` for a “live” feel.
+ */
 import type { MockSnapshot } from "./types";
 
 import { MARKET_QUESTION_DEFS } from "./marketCatalog";
@@ -29,6 +41,7 @@ export const buildInitialSnapshot = (
 
   return {
     prices: [{ t: Date.now(), v: baseMid }],
+    // Five bid-style levels stepping down from mid (mock path; Kalshi uses real REST elsewhere).
     orderbook: [0, 1, 2, 3, 4].map((i) => {
       const px = clamp(baseMid - i * 0.01, 0.02, 0.98);
       const qty = 800 + (i * 97) % 5000;
@@ -59,6 +72,7 @@ export const computeNextSnapshot = (prev: MockSnapshot): MockSnapshot => {
     0.92,
   );
   const nextPrice: MockSnapshot["prices"][0] = { t: Date.now(), v: mid };
+  // Cap history so a long-lived tab does not grow `prices` without bound (~chart window).
   const prices = [...prev.prices, nextPrice].slice(-240);
   const orderbook = [0, 1, 2, 3, 4].map((i) => {
     const px = mid - i * 0.01;
@@ -66,6 +80,7 @@ export const computeNextSnapshot = (prev: MockSnapshot): MockSnapshot => {
     return { px: px.toFixed(2), qty: fmtQty(qty) };
   });
   const spread = (0.008 + (Math.sin(phase * 3) + 1) * 0.006).toFixed(3);
+  // Wiggle each row’s implied prob slightly out of sync for a busier sidebar (still mock).
   const topics = MARKET_QUESTION_DEFS.map((q, i) => {
     const base = mid + Math.sin(phase + i * 0.13) * 0.06;
     const prob = clamp(base, 0.05, 0.95);

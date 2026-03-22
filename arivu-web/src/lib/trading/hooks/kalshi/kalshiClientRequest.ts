@@ -1,3 +1,14 @@
+/**
+ * Thin client for signed Kalshi **GET** JSON calls. Used from hooks (order book, candles).
+ *
+ * Result kinds:
+ * - `unconfigured` — missing env keys; callers should degrade to mock UI, not throw.
+ * - `ok` — parsed body as `unknown`; each hook validates shape.
+ * - `error` — network, timeout, 4xx/5xx, or signature failure — message for UI/logs.
+ *
+ * Security note: keys live in `NEXT_PUBLIC_*` (required for static client builds) —
+ * treat as **demo / user-owned** credentials, not server secrets.
+ */
 import { getKalshiBrowserConfig } from "./kalshiBrowserConfig";
 import { kalshiAuthedFetch } from "./kalshiAuth";
 
@@ -6,9 +17,7 @@ export type KalshiJsonResult =
   | { kind: "ok"; data: unknown }
   | { kind: "error"; message: string };
 
-/**
- * Authenticated GET to Kalshi Trade API from the client (static export / GitHub Pages).
- */
+/** Authenticated GET to Kalshi Trade API from the browser. */
 export const kalshiAuthedJsonGet = async (
   path: string,
   init?: { signal?: AbortSignal; timeoutMs?: number },
@@ -33,6 +42,7 @@ export const kalshiAuthedJsonGet = async (
     });
     return { kind: "ok", data };
   } catch (e) {
+    // Do not leak stack traces to UI — hooks map this to user-visible error strings.
     const message = e instanceof Error ? e.message : "Kalshi request failed";
     return { kind: "error", message };
   }

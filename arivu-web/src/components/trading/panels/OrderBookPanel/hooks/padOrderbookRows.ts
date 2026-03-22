@@ -1,3 +1,8 @@
+/**
+ * Pads order book display rows to a fixed count so the panel height does not jump when
+ * depth is thin. Placeholder rows use **negative sentinel** `px` values (-1, -2, …)
+ * that sort away from real prices and are not clickable (`disabled: true`).
+ */
 import type { DisplayOrderbookRow } from "@/lib/orderbook/prepareOrderbookDisplayRows";
 
 export type PaddedOrderbookRow = DisplayOrderbookRow & { disabled: boolean };

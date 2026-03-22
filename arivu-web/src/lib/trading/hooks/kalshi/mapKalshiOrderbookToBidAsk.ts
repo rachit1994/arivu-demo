@@ -1,3 +1,13 @@
+/**
+ * Normalizes Kalshi `orderbook_fp` into numeric YES-space **bids** and **asks**.
+ *
+ * - `yes_dollars`: YES bids at price p (probability dollars 0–1).
+ * - `no_dollars`: NO bids at price p_no; equivalent YES **ask** sits at `1 - p_no` with
+ *   the same size (complementarity of binary contracts).
+ *
+ * Sorting: bids descending (best first), asks ascending (best ask lowest YES price).
+ * Mid/spread from top of book; null if either side missing (caller shows mock fallback).
+ */
 import { parseKalshiFixedPointNumber } from "./formatKalshiFixedPoints";
 
 export type BidAskLevel = {
@@ -50,6 +60,7 @@ export const mapKalshiOrderbookToBidAsk = (
   }
 
   const spreadNumRaw = bestAskPx - bestBidPx;
+  // Crossed book can happen briefly with stale snapshots — clamp for display math.
   const spreadNum = spreadNumRaw < 0 ? 0 : spreadNumRaw;
 
   return {

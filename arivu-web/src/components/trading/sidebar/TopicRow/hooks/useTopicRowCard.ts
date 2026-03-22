@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Presentation + a11y helpers for `TopicRow`: selection ring classes, YES/NO bar percents
+ * from price strings, and keyboard activation (Enter / Space) when `role="button"`.
+ */
+
 import type { KeyboardEvent } from "react";
 
 import { computeYesBidSharePercent } from "../../topicRowPriceUtils";
@@ -36,6 +41,7 @@ export const useTopicRowCard = ({
   const starColorClass = isPinned
     ? "text-yellow-300"
     : "text-neutral-500 hover:text-neutral-200";
+  // Index 0 = unselected, 1 = selected — avoids ternary + duplicate class strings in JSX.
   const selectionClass = [
     "",
     "border-emerald-400/60 bg-emerald-500/5 ring-1 ring-emerald-500/15 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]",

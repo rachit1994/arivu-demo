@@ -1,4 +1,15 @@
+/**
+ * Integration tests for the home trading page: layout smoke, tabs, ticket math,
+ * order-book → ticket wiring, Kalshi vs mock fetch paths, and URL-driven UI.
+ *
+ * Coupling to watch:
+ * - Jotai default store is process-global; `resetTradingJotaiStore` runs in beforeEach.
+ * - `src/test/setup.ts` mocks `useSearchParams` from `window.location` — tests that
+ *   assert on `?market=` must `history.replaceState` before `render`.
+ * - Kalshi tests stub env + fetch; `afterEach` clears env stubs and restores fetch.
+ */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { getDefaultStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { resetKalshiPrivateKeyImportCache } from "@/lib/trading/hooks";
@@ -9,12 +20,52 @@ import {
   kalshiDemoBaseUrl,
   resolveFetchUrl,
 } from "@/lib/trading/hooks";
+import {
+  activeMarketQuestionAtom,
+  activeMarketTickerAtom,
+  activeSubaccountAtom,
+  activeTimeframeAtom,
+} from "@/lib/trading/state/activeMarketJotaiAtoms";
+import { pinnedMarketsAtom } from "@/lib/trading/state/pinnedMarketsJotaiAtoms";
+import {
+  ticketPickedOutcomeAtom,
+  ticketPickedPriceAtom,
+  ticketPickedSideAtom,
+  ticketPriceSetMarketTickerAtom,
+} from "@/lib/trading/state/ticketSelectionJotaiAtoms";
 
 import Home from "./page";
 
+/**
+ * Jotai’s default store is global across tests. Without a reset, one test’s
+ * selected market / ticket / pins leak into the next and cause flaky failures.
+ *
+ * We reset every atom TradingUrlSync / TopicList / ticket touch so each example
+ * starts from a known baseline regardless of test order or Vitest’s worker reuse.
+ */
+const resetTradingJotaiStore = (): void => {
+  const store = getDefaultStore();
+  // Clears selection — TopicList will default-first-row unless URL sets ?market=.
+  store.set(activeMarketTickerAtom, null);
+  store.set(activeMarketQuestionAtom, null);
+  // Matches nuqs defaults in useTradingUrlSync (avoids stale timeframe in subheader).
+  store.set(activeTimeframeAtom, "1D");
+  store.set(activeSubaccountAtom, 0);
+  // Ticket defaults mirror useTradingMarketSelection after picking a market.
+  store.set(ticketPickedOutcomeAtom, "YES");
+  store.set(ticketPickedPriceAtom, null);
+  store.set(ticketPickedSideAtom, "BUY");
+  // Prevents “price belongs to old ticker” logic from crossing tests.
+  store.set(ticketPriceSetMarketTickerAtom, null);
+  // Starred strip + sidebar pin state must not leak (would show phantom cards).
+  store.set(pinnedMarketsAtom, []);
+};
+
 describe("HomePageTradingLayout", () => {
   beforeEach(() => {
+    // Clean URL + clean atoms — tests that need query strings replaceState after this.
     globalThis.history.replaceState({}, "", "/");
+    resetTradingJotaiStore();
   });
 
   afterEach(() => {
@@ -83,6 +134,7 @@ describe("HomePageTradingLayout", () => {
     });
 
     test("order book click sets ticket price", async () => {
+      // Deep link with NO — click path should flip back to YES + sync URL (see waitFor).
       globalThis.history.replaceState({}, "", "/?outcome=NO");
       const { container } = render(<Home />);
 
@@ -150,6 +202,8 @@ describe("HomePageTradingLayout", () => {
     });
 
     test("kalshi order book click sets ticket in kalshi mode", async () => {
+      // Full query string: seeds ticker, forces Kalshi book UI, then verifies bid/ask
+      // clicks map to buy/sell side and clear stale outcome=NO from the URL.
       globalThis.history.replaceState(
         {},
         "",
@@ -163,6 +217,8 @@ describe("HomePageTradingLayout", () => {
 
       const originalFetch = globalThis.fetch;
       const baseHandler = createKalshiDemoFetchHandler();
+      // Spy wraps the demo handler so we could assert call counts; primary goal is
+      // deterministic Kalshi JSON without hitting the real network.
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => baseHandler(input));
 
       vi.stubGlobal("fetch", fetchSpy);
@@ -283,6 +339,7 @@ describe("HomePageTradingLayout", () => {
     test(
       "url seeds timeframe and subaccount UI",
       async () => {
+      // No ?market=: still exercises TradingUrlSync init for secondary params.
       globalThis.history.replaceState(
         {},
         "",
@@ -291,6 +348,7 @@ describe("HomePageTradingLayout", () => {
 
       render(<Home />);
 
+      // Long timeout: first paint may wait on async hooks + mock Kalshi in some envs.
       await waitFor(
         () => {
         const timeframeEl = screen.getAllByTestId("timeframe-value")[0];
@@ -338,6 +396,7 @@ describe("HomePageTradingLayout", () => {
 
       const originalFetch = globalThis.fetch;
       const baseHandler = createKalshiDemoFetchHandler();
+      // Order book 503 → UI falls back to mock rows; ticket should still update on click.
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
         const url = resolveFetchUrl(input);
         if (isKalshiOrderbookUrl(url)) {

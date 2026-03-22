@@ -1,3 +1,15 @@
+/**
+ * Converts the **string-based** mock snapshot ladder (`MockSnapshot.orderbook`) into
+ * numeric `OrderbookLevel[]` for both sides so `aggregateOrderbookLevelsByStep` can run.
+ *
+ * Mock snapshot only stores **bid-style** levels (see `computeTick`). This helper:
+ * - Parses bid px/qty (qty strings may contain thousands separators).
+ * - Infers **tick** from the gap between first and second bid, else 0.01.
+ * - Builds a synthetic **ask** ladder starting at `bestBid + spread` (spread from snapshot string),
+ *   stepping up by `tick`. Sizes mirror bids in reverse index so depth is not flat.
+ *
+ * Edge case: non-finite `spread` → treats spread as 0 (asks stack on best bid — odd but bounded).
+ */
 import type { OrderbookLevel } from "./computeOrderbookCumulativeLevels";
 
 const parseQty = (raw: string): number => {

@@ -1,3 +1,15 @@
+/**
+ * Maps a sparse Kalshi **market list** row (YES bid/ask dollars + optional tick/size)
+ * into the richer `MockSnapshot` shapes: synthetic bid ladder + appended mid price point.
+ *
+ * Used by `MockRealtimeProvider` in `kalshi` mode where we only get top-of-book fields,
+ * not full depth — we fabricate `levelCount` levels stepping down from best bid by `tickSize`.
+ *
+ * Edge cases:
+ * - Missing or non-finite bid/ask → empty orderbook, unchanged price history, spread "0.000".
+ * - Missing `tick_size` → default 0.01 (common YES increment).
+ * - `yes_bid_size_fp` missing → qty "0" (row still renders; book panel may aggregate away).
+ */
 import type { BookLevel, PricePoint } from "@/lib/mockRealtime/types";
 
 export type KalshiMarketTopOfBook = {
@@ -34,6 +46,7 @@ const buildOrderbook = (opts: {
 
   const out: BookLevel[] = [];
   for (let i = 0; i < levelCount; i += 1) {
+    // Clamp at 0 — negative prices are invalid; UI should still show something bounded.
     const px = Math.max(0, bestBid - i * tickSize);
     out.push({ px: formatPx(px), qty: bidQty });
   }
@@ -72,6 +85,8 @@ export const mapKalshiMarketToBookAndPrice = (args: {
   const spreadNum = Math.max(0, bestAsk - bestBid);
 
   const bidQty = market.yes_bid_size_fp ?? "0";
+  // Note: ladder is bid-side only — enough for mock stream + chart mid; full two-sided
+  // depth comes from `useKalshiMarketOrderbook` in the real book panel.
   const orderbook = buildOrderbook({
     bestBid,
     tickSize,
@@ -79,6 +94,7 @@ export const mapKalshiMarketToBookAndPrice = (args: {
     bidQty,
   });
 
+  // Caller passes `historySize` (e.g. 240) so Kalshi poll cannot grow prices forever.
   const nextPrices: PricePoint[] = [
     ...previousPrices,
     { t: nowMs, v: mid },

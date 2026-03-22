@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * Center column: live or mock depth, toolbar (layout + tick size), and row clicks
+ * that drive the order ticket via Jotai (`useOrderBookTicketPickSync`).
+ *
+ * `onPickTicket` prop: optional override for tests or embedded demos; default wires
+ * the real ticket atoms without lifting state to `page.tsx`.
+ *
+ * Row keys: real rows use price+cumulative; padded placeholders use stable `*-pad-i`
+ * keys so React does not reuse DOM between disabled filler rows and real data.
+ */
 import { PanelFrame } from "../PanelFrame";
 import {
   OrderbookDepthRow,
@@ -39,6 +49,7 @@ export const OrderBookPanel = ({ onPickTicket: onPickTicketProp }: Props) => {
   } = useOrderBookPanel({ onPickTicket });
 
   return (
+    // `overflow-hidden` on shell; inner ask/bid sections own `overflow-y-auto` scroll.
     <div
       data-testid="orderbook-panel"
       className="flex h-full min-h-0 flex-col overflow-hidden"

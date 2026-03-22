@@ -1,5 +1,20 @@
 "use client";
 
+/**
+ * React context that feeds **TopicList**, **chart mock candles**, and **mock order book**
+ * a single `MockSnapshot` updated on a timer.
+ *
+ * Modes:
+ * - `mock` — deterministic `computeNextSnapshot` tick loop (~20 Hz default). Resets
+ *   initial snapshot when `marketTicker` changes so sidebar selection has a fresh book.
+ * - `kalshi` — REST poll `/markets?status=open&limit=20`, pick a binary market (prefer
+ *   `marketTicker` match), map into book + price history via `mapKalshiMarketToBookAndPrice`.
+ *   Poll interval is at least 2s even if `tickMs` is lower — avoids hammering the API.
+ *
+ * Tests: timer loop is **disabled** when `NODE_ENV === "test"` so Vitest stays deterministic;
+ * components still get `buildInitialSnapshot` from state init + marketTicker effect.
+ */
+
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -107,6 +122,7 @@ export const MockRealtimeProvider = ({
         const result = await kalshiAuthedJsonGet("/markets?status=open&limit=20", {
           timeoutMs: 8000,
         });
+        // Unconfigured or error: silently keep last good snapshot (book panel may use REST).
         if (result.kind !== "ok") return;
 
         const data = result.data as { markets: KalshiBinaryMarketRow[] };
@@ -132,6 +148,7 @@ export const MockRealtimeProvider = ({
     return () => globalThis.clearInterval(id);
   }, [enabled, tickMs, mode, marketTicker]);
 
+  // Stable identity only when snap changes — fine for context consumers.
   const v = useMemo(() => snap, [snap]);
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 };

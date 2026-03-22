@@ -1,3 +1,12 @@
+/**
+ * Merges raw depth into **tick buckets** (e.g. 0.01) so the UI can show wider spreads
+ * without one row per micro-price. Quantities at prices that map to the same bucket add.
+ *
+ * - Invalid step (non-finite or ≤0): passthrough copy — avoids throwing from toolbar mistakes.
+ * - Skips non-finite px/qty and zero/negative qty (defensive against bad API/mock data).
+ * - Bucket key uses `round(px / step) * step` with `toFixed(10)` to reduce float jitter.
+ * - Sort: bids high→low, asks low→high (canonical for downstream cumulative + display).
+ */
 import type { OrderbookLevel } from "./computeOrderbookCumulativeLevels";
 
 export const aggregateOrderbookLevelsByStep = (

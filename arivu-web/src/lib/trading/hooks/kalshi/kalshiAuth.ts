@@ -1,3 +1,15 @@
+/**
+ * Kalshi Trade API **RSA-PSS** request signing for browser `fetch`.
+ *
+ * - Message format: `${timestampMs}${METHOD}${pathWithoutQuery}` (query string excluded
+ *   from the signed path segment per Kalshi’s signing rules — see `signKalshiRequest`).
+ * - Private key: PKCS#8 PEM → `importKey` → `sign` with salt length 32 (SHA-256 digest).
+ * - `kalshiAuthedFetch` composes headers and handles timeout + outer `AbortSignal` fan-out.
+ *
+ * Caching: `importRsaPssPrivateKey` memoizes `CryptoKey` by PEM string to avoid re-import
+ * on every poll (expensive on low-end devices).
+ */
+
 export interface SignKalshiRequestArgs {
   privateKeyPem: string;
   timestampMs: string;
@@ -154,6 +166,10 @@ export const kalshiAuthedFetch = async ({
     controller.abort();
   };
 
+  /*
+   * Bridge caller’s AbortSignal (e.g. React effect cleanup) with internal timeout abort.
+   * Both paths must clear listeners in `finally` to avoid leaks on long-lived pages.
+   */
   if (outerSignal) {
     if (outerSignal.aborted) controller.abort();
     else outerSignal.addEventListener("abort", onOuterAbort, { once: true });

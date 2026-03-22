@@ -1,5 +1,17 @@
 "use client";
 
+/**
+ * Sidebar market list UI.
+ *
+ * Next.js App Router: `useSearchParams()` opts the tree into **dynamic rendering** and
+ * can suspend while params resolve. We wrap the hook-using subtree in `<Suspense>` so
+ * the parent shell can render immediately and show a lightweight fallback here.
+ *
+ * `TopicListInner` holds all hooks — keep it as the single suspense boundary child so
+ * we don’t duplicate fallbacks for every row.
+ */
+import { Suspense } from "react";
+
 import { TopicRow } from "../TopicRow";
 
 import {
@@ -7,7 +19,8 @@ import {
   useTopicList,
 } from "./hooks/useTopicList";
 
-export const TopicList = () => {
+/** Real list body: safe to call `useTopicList` (includes `useSearchParams`). */
+const TopicListInner = () => {
   const {
     visibleQuestions,
     activeCategory,
@@ -79,3 +92,25 @@ export const TopicList = () => {
     </div>
   );
 };
+
+export const TopicList = () => (
+  <>
+    {/*
+      Fallback keeps sidebar width stable and preserves `data-testid="topic-list"` so
+      tests that query the list before inner mount still find a node (avoids brittle timing).
+    */}
+    <Suspense
+      fallback={
+        <div
+          data-testid="topic-list"
+          className="flex min-h-full flex-col p-2 text-[11px] text-neutral-500"
+          aria-busy="true"
+        >
+          Loading topics…
+        </div>
+      }
+    >
+      <TopicListInner />
+    </Suspense>
+  </>
+);

@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * Bridges Jotai ticket atoms to controlled inputs + derived est cost.
+ *
+ * `pickedPrice` null: show placeholder `"0.62"` in the input for a non-empty field while
+ * still treating “no pick” as null for clearing logic — product/demo default, not a live quote.
+ *
+ * `quantity` stays in local React state (not Jotai) until we need cross-panel sync.
+ */
+
 import { useMemo, useState } from "react";
 
 import { useAtom } from "jotai";
@@ -12,6 +21,7 @@ import {
   ticketPickedSideAtom,
 } from "@/lib/trading/state/ticketSelectionJotaiAtoms";
 
+/** Strips junk chars and caps length to avoid absurd paste payloads in the DOM. */
 export const clampNumericText = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed.length === 0) return "";

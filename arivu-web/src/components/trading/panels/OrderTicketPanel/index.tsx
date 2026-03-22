@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Right column: side (buy/sell), outcome (YES/NO), price + quantity inputs, est cost,
+ * and submit (UI-only for now). All trading state reads/writes Jotai atoms shared with
+ * the book and URL sync.
+ *
+ * `useClearTicketPickWhenMarketChanges` runs here so only the ticket subtree subscribes
+ * to ticker changes — avoids rerendering the whole page when clearing stale prices.
+ */
 import { PanelFrame } from "../PanelFrame";
 import { TicketRow } from "../ticket/TicketRow";
 import { TicketSegment } from "../ticket/TicketSegment";
@@ -42,6 +50,7 @@ export const OrderTicketPanel = () => {
               value={price}
               onChange={(e) => {
                 const next = clampNumericText(e.target.value);
+                // Empty → null atom so hooks know “no explicit price” vs placeholder display.
                 setPickedPrice(next.length === 0 ? null : next);
               }}
               className="rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 outline-none focus:border-emerald-500"

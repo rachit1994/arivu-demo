@@ -1,3 +1,10 @@
+/**
+ * Static demo catalog: category enum + a large list of synthetic `MarketQuestionDef`s
+ * used by `computeTick` (mock sidebar topics) and any UI that needs predictable seeds.
+ *
+ * IDs are `${slugify(category)}-${globalIndex}` — stable across builds for the same code.
+ * `buildQuestion` uses combinatorial templates so rows look varied without manual copy.
+ */
 export const MARKET_CATEGORIES = [
   "Elections",
   "Sports",
@@ -18,6 +25,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 
 const pick = <T,>(xs: readonly T[], i: number): T => xs[i % xs.length];
 
+/** URL-safe fragment for ids; strips punctuation so ids stay alphanumeric + hyphen. */
 const slugify = (s: string) =>
   s
     .trim()
@@ -62,6 +70,7 @@ const buildQuestion = (category: MarketCategory, index: number): string => {
   }
 };
 
+/** 5 × 60 = 300 mock rows — enough to stress category filters without huge bundles. */
 const QUESTIONS_PER_CATEGORY = 60;
 
 export const MARKET_QUESTION_DEFS: MarketQuestionDef[] = (() => {
@@ -73,6 +82,7 @@ export const MARKET_QUESTION_DEFS: MarketQuestionDef[] = (() => {
       out.push({
         id,
         category,
+        // Mix `i` and global `index` so `buildQuestion` templates don’t repeat in lockstep.
         question: buildQuestion(category, i + index),
       });
     }

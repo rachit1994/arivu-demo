@@ -1,3 +1,10 @@
+/**
+ * Sidebar market card: category pill, question, vol/APV, YES/NO prices, bid-mix bar,
+ * and pin star. The outer `div` acts as the select target (click + Enter/Space via hook);
+ * the star `button` **stops propagation** so pinning does not change selection.
+ *
+ * Styling tokens live in `TOPIC_ROW_LAYOUT` + `useTopicRowCard` for consistent density.
+ */
 import { TOPIC_ROW_LAYOUT } from "../topicRowLayout";
 
 import { useTopicRowCard } from "./hooks/useTopicRowCard";
@@ -30,6 +37,7 @@ const StarIcon = ({ isPinned }: { isPinned: boolean }) => (
   </svg>
 );
 
+/** Mirrors pinned-strip palette; default branch handles unknown/mock categories safely. */
 const getCategoryPillClass = (category: string): string => {
   switch (category) {
     case "Elections":
@@ -181,6 +189,7 @@ export const TopicRow = ({
           layout.pinRowHeight,
         ].join(" ")}
       >
+        {/* Isolate pin toggle from card `onClick` / keyboard activation. */}
         <button
           type="button"
           aria-label={isPinned ? "Unpin market" : "Pin market"}

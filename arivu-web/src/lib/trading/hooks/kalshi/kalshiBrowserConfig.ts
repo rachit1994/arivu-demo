@@ -12,6 +12,10 @@ export interface KalshiBrowserConfig {
   baseUrl: string;
 }
 
+/*
+ * CI and hosting often store multiline PEM as a single line with literal `\n` escapes.
+ * `normalizePem` turns those into real newlines so `importKey` sees valid PEM armor.
+ */
 const normalizePem = (raw: string): string =>
   raw.trim().replace(/\\n/g, "\n");
 

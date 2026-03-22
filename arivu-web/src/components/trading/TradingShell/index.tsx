@@ -1,3 +1,9 @@
+/**
+ * App chrome for trading: fixed **280px** left rail + fluid main. `min-w-0` on `<main>`
+ * is required so grid children can shrink — without it, wide charts overflow horizontally.
+ *
+ * `showSidebar` supports compact layouts/tests that mount only the main column.
+ */
 import type { ReactNode } from "react";
 
 import { LeftSidebar } from "../sidebar/LeftSidebar";

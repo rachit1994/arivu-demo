@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * Composes **Kalshi REST order book** (when keys + non-empty book exist) with **mock**
+ * depth from `useMockRealtime`. Presentation pipeline:
+ * raw levels → aggregate by `precisionStep` → trim to `ORDERBOOK_VISIBLE_ROWS` →
+ * display order (asks high→low for stacking) → pad to fixed row count for stable UI height.
+ *
+ * `hasKalshi`: strict check (mid + both sides non-empty) avoids flashing partial Kalshi
+ * data during load or after errors — we fall back to mock until the snapshot is usable.
+ *
+ * `lastPrice`: Kalshi mid wins when live; else book mid from whichever source; else last
+ * mock tick from the price stream — gives a sensible “tape” when book mid is missing.
+ */
+
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 
@@ -58,6 +71,10 @@ export const useOrderBookPanel = ({
     pollIntervalMs: ORDERBOOK_POLL_MS,
   });
 
+  /*
+   * Require a full top-of-book on both sides — one-sided books break spread UI and
+   * cumulative bars; mock path is safer for demos until Kalshi returns depth.
+   */
   const hasKalshi =
     kalshi.mid !== null && kalshi.bids.length > 0 && kalshi.asks.length > 0;
 
@@ -71,6 +88,7 @@ export const useOrderBookPanel = ({
     return { bidsRaw: mock.bids, asksRaw: mock.asks };
   }, [hasKalshi, kalshi.asks, kalshi.bids, orderbook, spread]);
 
+  /** Best bid/ask mid from whichever raw book is active (null if either side missing). */
   const bookMid = useMemo(() => {
     const bb = bidsRaw.at(0)?.px;
     const ba = asksRaw.at(0)?.px;
@@ -80,6 +98,10 @@ export const useOrderBookPanel = ({
   }, [asksRaw, bidsRaw]);
 
   const { askRows, bidRows, maxCum } = useMemo(() => {
+    /*
+     * Aggregation merges levels into tick buckets; slice caps rows so the panel height
+     * stays predictable. `maxCum` drives bar width scaling across both sides.
+     */
     const bidsAgg = aggregateOrderbookLevelsByStep(
       bidsRaw,
       precisionStep,
@@ -116,6 +138,7 @@ export const useOrderBookPanel = ({
   if (hasKalshi) {
     lastPrice = kalshi.mid;
   } else if (streamLast !== undefined && Number.isFinite(streamLast)) {
+    // Mock mode: prefer streaming last trade over synthetic book mid when available.
     lastPrice = streamLast;
   }
 
@@ -125,6 +148,10 @@ export const useOrderBookPanel = ({
   const showAsks = layoutMode === "combined" || layoutMode === "asks";
   const showBids = layoutMode === "combined" || layoutMode === "bids";
 
+  /*
+   * `flex-1 basis-0` lets ask and bid stacks share leftover height evenly in combined
+   * mode; each side scrolls independently when rows exceed the viewport.
+   */
   const sideScrollClass =
     "flex min-h-0 flex-1 basis-0 flex-col overflow-y-auto";
 
